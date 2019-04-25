@@ -1,0 +1,78 @@
+#! /bin/bash
+# 
+# Walks through the schedule of a day
+#
+# A schedule is a file containing lines in the format:
+# 
+# task HH MM
+# 
+# where task can consist of several words 
+# and HH MM is the time at which it should end.
+
+###############################################
+# Get the number of minutes from now until desired time
+#
+# Does not take in account date changes (passing midnight)
+#
+# Globals:
+#   None
+# Arguments:
+#   hour
+#   minutes
+# Returns:
+#   number of minutes from now until desired time
+###############################################
+minutes_until() {
+  date +"%H %M" | awk '{print '$1' * 60 + '$2' - ($1 * 60 + $2)}' | cat
+}
+
+
+###############################################
+# Fill a progress bar every minute for the desired amount of time
+#
+# This is archieved by outputing one byte (one empty line) per minute, feed
+# them into `pv` to get a progress bar and then discard them into /dev/null
+# Globals:
+#   None
+# Arguments:
+#   number of minutes
+# Returns:
+#   None 
+###############################################
+progress() {
+  local counter=$1
+  (
+    sleep 59.5
+    while [[ ${counter} -gt 1 ]]; do
+      counter=$((${counter}-1))
+      (echo '' | cat)
+      sleep 60
+    done
+    (echo "" | cat)
+  ) \
+    | pv -s $1 -S \
+    | cat > /dev/null
+  echo -n $'\a' # Ring a bell
+}
+
+
+###############################################
+# Read tasks from a schedule one at a time and show a progress for each one
+# Globals:
+#   None
+# Arguments:
+#   path to schedule
+# Returns:
+#   None
+###############################################
+main(){
+  local line duration
+  while read -a line; do
+    duration=$(minutes_until ${line[@]:(-2)}) # Keep last two elements of array
+    echo "${line[@]} (${duration}min)"
+    if [[ ${duration} -gt 0 ]]; then
+      progress ${duration}
+    fi
+  done < "$1"
+}
+main "$@"
