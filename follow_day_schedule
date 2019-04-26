@@ -4,10 +4,11 @@
 #
 # A schedule is a file containing lines in the format:
 # 
-# task HH MM
+# HH MM task
 # 
 # where task can consist of several words 
-# and HH MM is the time at which it should end.
+# and HH MM is the time at which it should start.
+# (The start time of the next task is the end time of the previous one)
 
 ###############################################
 # Get the number of minutes from now until desired time
@@ -66,13 +67,15 @@ progress() {
 #   None
 ###############################################
 main(){
-  local line duration
-  while read -a line; do
-    duration=$(minutes_until ${line[@]:(-2)}) # Keep last two elements of array
-    echo "${line[@]} (${duration}min)"
+  local next_task duration HH MM task
+  task=""
+  while read HH MM next_task; do
+    duration=$(minutes_until "${HH}" "${MM}")
+    echo "${task} (${duration}min)"
     if [[ ${duration} -gt 0 ]]; then
       progress ${duration}
     fi
+    task="${next_task}"
   done < "$1"
 }
 main "$@"
